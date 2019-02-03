@@ -12,6 +12,7 @@ browser all at once.
 
 import os
 import re
+import sys
 
 try:
     # Python3
@@ -27,6 +28,12 @@ def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
 
     Both start and stop are inclusive.
     '''
+    approx_start = start if start else 0
+    approx_stop = stop if stop else bufsize * 100
+    approx_bytes = approx_stop - approx_start
+    acc = 0
+    percent = 0
+
     if start is not None: infile.seek(start)
     while 1:
         to_read = min(bufsize, stop + 1 - infile.tell() if stop else bufsize)
@@ -34,6 +41,14 @@ def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
         if not buf:
             break
         outfile.write(buf)
+
+        acc += to_read
+        percent = acc * 100 / approx_bytes
+        for i in range(100):
+            sys.stderr.write('█' if i < percent else '░')
+        sys.stderr.write('\r')
+
+    sys.stderr.write('\n')
 
 
 BYTE_RANGE_RE = re.compile(r'bytes=(\d+)-(\d+)?$')
