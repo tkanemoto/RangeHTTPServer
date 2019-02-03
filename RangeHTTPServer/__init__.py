@@ -67,10 +67,11 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
             self.range = None
             self.file_length = None
             f = SimpleHTTPRequestHandler.send_head(self)
-            old = f.tell()
-            f.seek(0, os.SEEK_END)
-            self.file_length = f.tell()
-            f.seek(old, os.SEEK_SET)
+            if f:
+                old = f.tell()
+                f.seek(0, os.SEEK_END)
+                self.file_length = f.tell()
+                f.seek(old, os.SEEK_SET)
             return f
         try:
             self.range = parse_byte_range(self.headers['Range'])
