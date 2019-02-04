@@ -78,9 +78,9 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
     - Override copyfile to only transmit a range when requested.
     """
     def send_head(self):
+        self.range = None
+        self.file_length = None
         if 'Range' not in self.headers:
-            self.range = None
-            self.file_length = None
             f = SimpleHTTPRequestHandler.send_head(self)
             if f:
                 old = f.tell()
