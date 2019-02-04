@@ -80,7 +80,8 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
     def send_head(self):
         self.range = None
         self.file_length = None
-        if 'Range' not in self.headers:
+
+        if 'Range' not in self.headers or self.path.endswith('/'):
             f = SimpleHTTPRequestHandler.send_head(self)
             if f:
                 old = f.tell()
