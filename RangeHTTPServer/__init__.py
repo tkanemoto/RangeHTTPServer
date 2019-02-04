@@ -65,7 +65,13 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
     def send_head(self):
         if 'Range' not in self.headers:
             self.range = None
-            return SimpleHTTPRequestHandler.send_head(self)
+            self.file_length = None
+            f = SimpleHTTPRequestHandler.send_head(self)
+            old = f.tell()
+            f.seek(0, os.SEEK_END)
+            self.file_length = f.tell()
+            f.seek(old, os.SEEK_SET)
+            return f
         try:
             self.range = parse_byte_range(self.headers['Range'])
         except ValueError as e:
@@ -83,20 +89,23 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
             self.send_error(404, 'File not found')
             return None
 
+        f.seek(0, os.SEEK_END)
+        self.file_length = f.tell()
+        f.seek(0, os.SEEK_SET)
+
         fs = os.fstat(f.fileno())
         file_len = fs[6]
         if first >= file_len:
             self.send_error(416, 'Requested Range Not Satisfiable')
             return None
 
-        self.send_response(206)
-        self.send_header('Content-type', ctype)
-        self.send_header('Accept-Ranges', 'bytes')
-
         if last is None or last >= file_len:
             last = file_len - 1
         response_length = last - first + 1
 
+        self.send_response(206)
+        self.send_header('Content-type', ctype)
+        self.send_header('Accept-Ranges', 'bytes')
         self.send_header('Content-Range',
                          'bytes %s-%s/%s' % (first, last, file_len))
         self.send_header('Content-Length', str(response_length))
@@ -112,3 +121,12 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         # you stop the copying before the end of the file.
         start, stop = self.range  # set in send_head()
         copy_byte_range(source, outputfile, start, stop)
+
+    def log_message(self, format, *args):
+        if self.range is not None:
+            args += (self.range,)
+            format += ' %s'
+        if self.file_length is not None:
+            args += (self.file_length,)
+            format += ' %s'
+        SimpleHTTPRequestHandler.log_message(self, format, *args)
