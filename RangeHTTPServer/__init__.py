@@ -13,6 +13,7 @@ browser all at once.
 import os
 import re
 import sys
+import datetime
 
 try:
     # Python3
@@ -22,36 +23,11 @@ except ImportError:
     # Python 2
     from SimpleHTTPServer import SimpleHTTPRequestHandler
 
-
-def copy_byte_range(infile, outfile, start=None, stop=None, bufsize=16*1024):
-    '''Like shutil.copyfileobj, but only copy a range of the streams.
-
-    Both start and stop are inclusive.
-    '''
-    approx_start = start if start else 0
-    approx_stop = stop if stop else bufsize * 100
-    approx_bytes = approx_stop - approx_start
-    acc = 0
-    percent = 0
-
-    if start is not None: infile.seek(start)
-    while 1:
-        to_read = min(bufsize, stop + 1 - infile.tell() if stop else bufsize)
-        buf = infile.read(to_read)
-        if not buf:
-            break
-        outfile.write(buf)
-
-        acc += to_read
-        percent = acc * 100 / approx_bytes
-        for i in range(100):
-            sys.stderr.write('█' if i < percent else '░')
-        sys.stderr.write('\r')
-
-    sys.stderr.write('\n')
-
+BUFSIZE = 16 * 1024
 
 BYTE_RANGE_RE = re.compile(r'bytes=(\d+)-(\d+)?$')
+
+
 def parse_byte_range(byte_range):
     '''Returns the two numbers in 'bytes=123-456' or throws ValueError.
 
@@ -137,7 +113,38 @@ class RangeRequestHandler(SimpleHTTPRequestHandler):
         # SimpleHTTPRequestHandler uses shutil.copyfileobj, which doesn't let
         # you stop the copying before the end of the file.
         start, stop = self.range  # set in send_head()
-        copy_byte_range(source, outputfile, start, stop)
+
+        approx_start = start if start else 0
+        approx_stop = stop if stop else self.file_length
+        approx_bytes = approx_stop - approx_start
+        acc = 0
+        percent = 0
+        last_sample = datetime.datetime.now()
+        bytes_since_last_sample = 0
+
+        if start is not None: source.seek(start)
+        while 1:
+            to_read = min(BUFSIZE, stop + 1 - source.tell() if stop else BUFSIZE)
+            buf = source.read(to_read)
+            if not buf:
+                break
+            outputfile.write(buf)
+
+            acc += to_read
+            bytes_since_last_sample += to_read
+            percent = acc * 100 / approx_bytes
+            for i in range(100):
+                sys.stderr.write('█' if i < percent else '░')
+            sys.stderr.write(' %.1f/%.1f kB' % (acc / 1024, approx_bytes / 1024))
+            now = datetime.datetime.now()
+            elapsed = (now - last_sample).total_seconds()
+            if elapsed > 3:
+                sys.stderr.write(' - %.1f kB/s' % (bytes_since_last_sample / 1024))
+                bytes_since_last_sample = 0
+                last_sample = now
+            sys.stderr.write('\r')
+
+        sys.stderr.write('\n')
 
     def log_message(self, format, *args):
         if self.range is not None:
