@@ -23,7 +23,7 @@ except ImportError:
     # Python 2
     from SimpleHTTPServer import SimpleHTTPRequestHandler
 
-BUFSIZE = 16 * 1024
+BUFSIZE = 512 * 1024
 
 BYTE_RANGE_RE = re.compile(r'bytes=(\d+)-(\d+)?$')
 
