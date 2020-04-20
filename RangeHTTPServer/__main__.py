@@ -30,6 +30,6 @@ parser.add_argument('port', action='store',
 
 args = parser.parse_args()
 
-with socketserver.TCPServer(("", args.port), RangeRequestHandler) as httpd:
+with socketserver.ThreadingTCPServer(("", args.port), RangeRequestHandler) as httpd:
     print("serving at port", args.port)
     httpd.serve_forever()
