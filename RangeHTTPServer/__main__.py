@@ -20,6 +20,8 @@ except ImportError:
 
 from . import RangeRequestHandler
 
+import socketserver
+
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('port', action='store',
@@ -27,4 +29,7 @@ parser.add_argument('port', action='store',
                     nargs='?', help='Specify alternate port [default: 8000]')
 
 args = parser.parse_args()
-SimpleHTTPServer.test(HandlerClass=RangeRequestHandler, port=args.port)
+
+with socketserver.TCPServer(("", args.port), RangeRequestHandler) as httpd:
+    print("serving at port", args.port)
+    httpd.serve_forever()
